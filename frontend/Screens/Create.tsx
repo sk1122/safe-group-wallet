@@ -13,20 +13,21 @@ import React, {useEffect, useState} from 'react';
 import '@ethersproject/shims';
 import {ethers} from 'ethers';
 import {abi} from '../../contracts/createWalletABI';
+import WalletConnectProvider from '@walletconnect/web3-provider';
+import {useWalletConnect} from '@walletconnect/react-native-dapp';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Create = ({navigation, route}) => {
   const [amount, setAmount] = useState('0.1');
   const [votes, setVotes] = useState('2');
-  const [members, setMembers] = useState([
-    ((route || {}).params || {}).walletAddress,
-  ]);
+  const [members, setMembers] = useState([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const connector = useWalletConnect();
 
   const createWallet = async () => {
     setError('');
     setIsLoading(true);
-
     if (
       Number(amount) &&
       Number(votes) &&
@@ -34,32 +35,40 @@ const Create = ({navigation, route}) => {
       ((route || {}).params || {}).walletAddress
     ) {
       // Connect to the network
-      let provider = ethers.getDefaultProvider(
-        'https://polygon-mumbai.g.alchemy.com/v2/Oghn-I8AdHSS9w4DD5k6D6-B8nTuva-I',
-      );
-
-      const signer = new ethers.Wallet(
-        ((route || {}).params || {}).walletAddress || '',
-        provider,
-      );
+      let signer = null;
+      if (((route || {}).params || {}).walletConnect) {
+        const provider = new WalletConnectProvider({
+          rpc: {
+            80001: 'https://polygon-mumbai.g.alchemy.com/v2/Oghn-I8AdHSS9w4DD5k6D6-B8nTuva-I',
+          },
+          chainId: 80001,
+          connector: connector,
+          qrcode: false,
+        });
+        await provider.enable();
+        const ethers_provider = new ethers.providers.Web3Provider(provider);
+        signer = ethers_provider.getSigner();
+      } else {
+        let key = await AsyncStorage.getItem('key');
+        let provider = ethers.getDefaultProvider(
+          'https://polygon-mumbai.g.alchemy.com/v2/Oghn-I8AdHSS9w4DD5k6D6-B8nTuva-I',
+        );
+        signer = new ethers.Wallet(key, provider);
+      }
       const contract = new ethers.Contract(
         '0xB31B0320f9918E8ce2f26BCc7F3651a6508E4702',
         abi,
         signer,
       );
-
       try {
         let wallet = await contract.create_wallet(parseInt(votes), members, {
           value: ethers.utils.parseEther(amount),
         });
         wallet = await wallet.wait();
-        const walletAddress = new ethers.Wallet(
-          ((route || {}).params || {}).walletAddress || '',
-        );
         setIsLoading(false);
 
-        navigation.push('Onboard', {
-          walletAddress: (walletAddress || {}).address,
+        navigation.replace('Onboard', {
+          walletAddress: ((route || {}).params || {}).walletAddress,
           walletConnect: ((route || {}).params || {}).walletConnect,
         });
       } catch (e) {
@@ -69,7 +78,7 @@ const Create = ({navigation, route}) => {
       }
     } else {
       setIsLoading(false);
-      setError('Enter amount and required votes');
+      setError('Amount, Required votes and atleast one member is mandatory');
     }
   };
 
@@ -122,6 +131,13 @@ const Create = ({navigation, route}) => {
       </View>
       <View style={styles.field}>
         <Text style={styles.text}>Members:</Text>
+        <TextInput
+          key={`owner-0`}
+          style={styles.membersInput}
+          placeholderTextColor={'white'}
+          value={((route || {}).params || {}).walletAddress}
+          editable={false}
+        />
         {Array.from(
           Array((members || []).length > 0 ? (members || []).length : 1),
           (member, index) => (
@@ -132,7 +148,7 @@ const Create = ({navigation, route}) => {
                 placeholder={`Enter Member ${index + 1} Address`}
                 placeholderTextColor={'white'}
                 value={members[index] || ''}
-                editable={index == 0 ? false : true}
+                editable={true}
                 onChangeText={text => {
                   setMembers(prev => {
                     let update = [...prev];
@@ -145,25 +161,32 @@ const Create = ({navigation, route}) => {
                   });
                 }}
               />
-              {index !== 0 && (
-                <View style={styles.membersButton} key={`button-view-${index}`}>
-                  <Button
-                    key={`button-${index}`}
-                    title=" - "
-                    onPress={() => deleteMembers(index)}
-                  />
-                </View>
-              )}
+
+              <View style={styles.membersButton} key={`button-view-${index}`}>
+                <Button
+                  key={`button-${index}`}
+                  title=" - "
+                  onPress={() => deleteMembers(index)}
+                />
+              </View>
             </View>
           ),
         )}
-        <TouchableOpacity onPress={addMember}>
+        <TouchableOpacity
+          onPress={() => {
+            addMember();
+          }}>
           <Text style={styles.add}>Add member</Text>
         </TouchableOpacity>
       </View>
 
       <View>
-        <Button title="Create" onPress={createWallet} />
+        <Button
+          title="Create"
+          onPress={() => {
+            createWallet();
+          }}
+        />
         <ActivityIndicator animating={isLoading} size="small" color="#26abff" />
       </View>
       <Text style={styles.danger}>{error || ''}</Text>
@@ -189,7 +212,7 @@ const styles = StyleSheet.create({
   textInput: {
     width: '100%',
     backgroundColor: '#cccccc',
-    color: 'white',
+    color: 'black',
     borderRadius: 5,
     borderColor: 'black',
     borderWidth: 1,
@@ -212,7 +235,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     width: '90%',
     backgroundColor: '#cccccc',
-    color: 'white',
+    color: 'black',
     borderRadius: 5,
     borderColor: 'black',
     borderWidth: 1,
