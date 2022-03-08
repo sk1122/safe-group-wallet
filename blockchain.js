@@ -40,9 +40,9 @@ export const submitTransaction = async (contract, destination, value, signer) =>
 	@params contract - ethers.Contract instance of a group wallet
 	@params transactionId - a number, id of transaction
 */
-export const confirmTransaction = async (contract, transactionId) => {
+export const confirmTransaction = async (contract, transactionId, user) => {
 	try {
-		let transaction = await contract.confirmTransaction(transactionId)
+		let transaction = await contract.confirmTransaction(transactionId, user)
 		await transaction.wait()
 		return transaction.hash
 	} catch (e) {
@@ -56,9 +56,9 @@ export const confirmTransaction = async (contract, transactionId) => {
 	@params contract - ethers.Contract instance of a group wallet
 	@params transactionId - a number, id of transaction
 */
-export const rejectTransaction = async (contract, transactionId) => {
+export const rejectTransaction = async (contract, transactionId, user) => {
 	try {
-		let transaction = await contract.rejectTransaction(transactionId)
+		let transaction = await contract.rejectTransaction(transactionId, user)
 		await transaction.wait()
 		return transaction.hash
 	} catch (e) {
@@ -88,9 +88,9 @@ export const removeUser = async (contract, address) => {
 	@params contract - ethers.Contract instance of a group wallet
 	@params proposalId - a number, id of removing proposal
 */
-export const confirmRemoveUser = async (contract, proposalId) => {
+export const confirmRemoveUser = async (contract, proposalId, user) => {
 	try {
-		let transaction = await contract.addConfirmationProposal(proposalId)
+		let transaction = await contract.addConfirmationProposal(proposalId, user)
 		await transaction.wait()
 		return transaction.hash
 	} catch (e) {
@@ -104,9 +104,9 @@ export const confirmRemoveUser = async (contract, proposalId) => {
 	@params contract - ethers.Contract instance of a group wallet
 	@params proposalId - a number, id of removing proposal
 */
-export const rejectRemoveUser = async (contract, proposalId) => {
+export const rejectRemoveUser = async (contract, proposalId, user) => {
 	try {
-		let transaction = await contract.revokeConfirmationProposal(proposalId)
+		let transaction = await contract.revokeConfirmationProposal(proposalId, user)
 		await transaction.wait()
 		return transaction.hash
 	} catch (e) {
@@ -136,9 +136,9 @@ export const changeRequiredVotes = async (contract, new_required_votes) => {
 	@params contract - ethers.Contract instance of a group wallet
 	@params changeProposalId - a number, id of change required_votes proposal
 */
-export const confirmChangeRequiredVotes = async (contract, changeProposalId) => {
+export const confirmChangeRequiredVotes = async (contract, changeProposalId, user) => {
 	try {
-		let transaction = await contract.addConfirmationChangeProposal(changeProposalId)
+		let transaction = await contract.addConfirmationChangeProposal(changeProposalId, user)
 		await transaction.wait()
 		return transaction.hash
 	} catch (e) {
@@ -152,11 +152,31 @@ export const confirmChangeRequiredVotes = async (contract, changeProposalId) => 
 	@params contract - ethers.Contract instance of a group wallet
 	@params changeProposalId - a number, id of change required_votes proposal
 */
-export const rejectChangeRequiredVotes = async (contract, changeProposalId) => {
+export const rejectChangeRequiredVotes = async (contract, changeProposalId, user) => {
 	try {
-		let transaction = await contract.revokeConfirmationChangeProposal(changeProposalId)
+		let transaction = await contract.revokeConfirmationChangeProposal(changeProposalId, user)
 		await transaction.wait()
 		return transaction.hash
+	} catch (e) {
+		console.log(e)
+		return false
+	}
+}
+
+export const checkChangeProposalVote = async (contract, changeProposalId, user) => {
+	try {
+		let transaction = await contract.change_proposal_confirmations(changeProposalId, user)
+		return transaction
+	} catch (e) {
+		console.log(e)
+		return false
+	}
+}
+
+export const checkRemoveProposalVote = async (contract, changeProposalId, user) => {
+	try {
+		let transaction = await contract.proposal_confirmations(changeProposalId, user)
+		return transaction
 	} catch (e) {
 		console.log(e)
 		return false
